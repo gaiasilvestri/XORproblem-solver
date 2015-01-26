@@ -1,6 +1,6 @@
 MATLAB SIMULATION
 =================
-XORproblem-solver
+XOR problem-solver
 =================
 
 Neural network simulation - an XOR problem solver with backpropagation.
