@@ -1,7 +1,8 @@
-% Gaia Silvestri, 57854101
+% Gaia Silvestri
 % Neural network XOR problem
 % with hidden units 
 % November 2013
+
 npass=10000;
 nhidden=4;
 W1=zeros(nhidden,2);
