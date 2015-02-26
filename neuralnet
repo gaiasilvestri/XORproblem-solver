@@ -1,31 +1,35 @@
 % Gaia Silvestri
-% Neural network XOR problem
-% with hidden units 
+% Neural network: XOR problem solver
+% with a 2-element input layer, 4-element hidden layer, a 1-element output layer
+% Trained with the delta rule / used a permuted sequence of training trials (the four possible inputs in various random orders)
 % November 2013
 
 npass=10000;
-nhidden=4;
-W1=zeros(nhidden,2);
-W2=zeros(nhidden,1);
-zout=zeros(1,4);
-inp=[0 0; 0 1; 1 0; 1 1];
-target1=[0 1 1 0]; % target for inp as above
-target=[0 0 0 0];  % set to zeros now, it will be filled with targets corresponding to relevant pattern selection for each pass
+nhidden=4;                % set the number of hidden units
+W1=zeros(nhidden,2);      % synapses from the 2 input units to the 4 hidden units (tot of 8)
+W2=zeros(nhidden,1);      % synapses from the 4 hidden units to the output unit (tot of 4)
+zout=zeros(1,4);          % four outputs corresponding to the four inputs 
+inp=[0 0; 0 1; 1 0; 1 1]; % the four possible inputs 
+target1=[0 1 1 0];        % target for input as above
+target=[0 0 0 0];         % set to zeros now, it will be filled with correct targets corresponding to the input pattern selection 
+                          % for each pass
 
-dW2=zeros(nhidden,1);
-dW1=zeros(nhidden,2);
+dW2=zeros(nhidden,1);     % synaptic weight change for synapses between hidden and output layer
+dW1=zeros(nhidden,2);     % synaptic weight change for synapses between input and hidden layer
 
 
-a=0.5;  
+a=0.5;                  %learning rate (0<a<1)
 b=0.05;
 alpha=0.5;
-m=0.3;
-t=0.1;
-hbias=zeros(nhidden,1);
-obias=0;
+m=0.3;                  %momentum (how much a previous weight change affects current weight change)
+t=0.1;                  %tolerance (criterion for accepting an output as ok)
+hbias=zeros(nhidden,1); %hidden units bias
+obias=0;                %output units bias
 
 
-% negative and positive weights between -1 and 1 in W1
+% ASSIGN SYNAPTIC WEIGHTS: negative and positive weights between -1 and 1 
+
+%weights between input layer and hidden layer: W1
 for i=1:nhidden
     for k=1:2
     W1(i,k)=rand;           % comment out for non-random weights
@@ -36,87 +40,90 @@ for i=1:nhidden
     end
 end
 
-
-% negative and positive weights between -1 and 1 in W2
+% weights between hidden layer and output layer: W2
 for i=1:nhidden
     r=rand;
     W2(i,1)=rand;           % comment out for non-random weights
     if r<0.5
     W2(i,1)=W2(i,1)*-1;
     end
-    
 end
+
+%LEARNING FORWARD PASS
 iterations=0;
 for l=1:npass
-    pindex=randperm(4);                     %rescramble patterns at every pass
-    target=[0 0 0 0];                       %reset target for each pass
-    for s=1:4                               %each pass contains all 4 patterns in a random order
-        
-        curpat=inp(pindex(1,s),:);          %current pattern 
-        target(1,s)=target1(1,pindex(1,s));
-        %curpat=[0 1]; %for testing
-        %y=curpat.*W1';
-        y =bsxfun(@times,curpat,W1);
-        
-        %we are in hidden layer
-        y=sum(y,2);                          %this and previous line: multiplied current pattern by w1 
-        for g=1:nhidden
-        y(nhidden,1)=y(nhidden,1)+hbias(nhidden,1);                           %add bias to each hidden neuron
-        end
-        yout=1./(1+exp((-1*(y-a))./b));      %squashes activation of each hidden neuron
-        yout=yout';
-        %we are in output stuff
+    pindex=randperm(4);                         %rescramble patterns at every pass
+    target=[0 0 0 0];                           %reset target output for each pass
     
-        z(1,s)=yout*W2;                           
-        
-        z(1,s)=z(1,s)+obias;                           %add obias to output neuron
-        zout(1,s)=1./(1+exp((-1*(z(1,s)-a))./b));      %vector is filled when you did 4 patterns, then compare to comparison vector
-        %compute error for output layer given current pattern
-        currentzout=zout(1,s);
-        
-        d=currentzout*(1-currentzout)*(target(1,s)-currentzout);
-        
-        %compute error for hidden layer given current pattern [for each
-        %hidden neuron: activation*(1-activation)*weight leaving that
-        %neuron*d
-        for c=1:nhidden
-        e(1,c)= yout(1,c)*(1-yout(1,c))*W2(c,1)*d;
+        for s=1:4                               %each pass contains all 4 possible inputs in a random order
+            curpat=inp(pindex(1,s),:);                      %get the four inputs in a random order
+            target(1,s)=target1(1,pindex(1,s));             %get correct target output for the inputs in this current order
+            %curpat=[0 1];  %for testing
+            %y=curpat.*W1'; %for testing 
+    %COMPUTE ACTIVATION OF EACH HIDDEN NEURON FOR INPUT PATTERN SELECTED
+            y =bsxfun(@times,curpat,W1);                    %multiply: activation of each input neuron and its two outgoing weights to hidden layer
+            y=sum(y,2);                                     %get summed input for each hidden neuron 
+            for g=1:nhidden
+            y(nhidden,1)=y(nhidden,1)+hbias(nhidden,1);     %add bias to each hidden neuron
         end
-        %change in W2
+        
+    yout=1./(1+exp((-1*(y-a))./b));                         %squashes activation of each hidden neuron
+    yout=yout';
+    
+    %COMPUTE ACTIVATION OF OUTPUT NEURON
+    z(1,s)=yout*W2;         %multiply: activation of each hidden neuron and its outgoing weight to output layer               
+    z(1,s)=z(1,s)+obias;                           %add obias to output neuron
+    zout(1,s)=1./(1+exp((-1*(z(1,s)-a))./b));      %vector is filled when you did 4 patterns, then compare to comparison vector
+    
+    %BACKPROPAGATION OF ERROR!
+    
+    %COMPUTE OUTPUT LAYER ERROR given current pattern:
+    %error = activation of output unit*(1-activation of output unit)*(target-activation of output unit)
+    currentzout=zout(1,s);
+    d=currentzout*(1-currentzout)*(target(1,s)-currentzout);
+        
+    %COMPUTE HIDDEN LAYER ERROR (for every hidden unit) given current pattern:
+    %for each hidden unit:error = activation*(1-activation)*weight leaving that neuron*d
+        for c=1:nhidden
+            e(1,c)= yout(1,c)*(1-yout(1,c))*W2(c,1)*d;
+        end
+        
+    %CALCULATE CHANGES TO THE WEIGHTS FOR THE HIDDEN->OUTPUT SYNAPSES in W2
         for v=1:nhidden
         dW2(v,1)= alpha*yout(1,v)*d + m*dW2(v,1);
         end
-        %adjust w2 for hidden-->output synapses
+    %ADJUST WEIGHTS FOR THE HIDDEN->OUTPUT SYNAPSES in W2
         W2=dW2+W2;
         %adjust obias
         obias=obias+alpha*d;
-        %change in W1
+    %CALCULATE CHANGES TO THE WEIGHTS FOR THE INPUT->HIDDEN SYNAPSES in W1
         for x=1:2
             for q=1:nhidden
-        dW1(q,x)= alpha*curpat(1,x)*e(1,q)+m*dW1(q,x);
+                dW1(q,x)= alpha*curpat(1,x)*e(1,q)+m*dW1(q,x);
             end
         end
-        %adjust w1 for input -->hidden synapses
+    %ADJUST WEIGHTS FOR THE INPUT->HIDDEN SYNAPSES in W1
         W1=dW1+W1;
         %adjust hbias
         for p=1:nhidden
         hbias(p,1)=hbias(p,1)+alpha*e(1,p);
         end
     end
-        %check zout for goodness (Tk-zout<t? for EACH PATTERN, break only
-        %if all 4 patterns pass this check
-       % tss=(sum(se)); %total sum-squared error is the sum of all se (squared error for current training pattern)
-        %hold on;
-       % plot(tss);
-        
+    
+    %IS THE OUTPUT FOR EACH INPUT PATTERN CORRECT?
+    %Target-output < tolerance? for EACH INPUT PATTERN, break only if all 4 patterns pass this check
+    %tss=(sum(se)); %total sum-squared error is the sum of all se (squared error for current training pattern)
+    %hold on;
+    %plot(tss);
+    
+        %are all outputs correct, based on our tolerance criterium?
         if abs(target(1,1)-zout(1,1))<t && abs(target(1,2)-zout(1,2))<t && abs(target(1,3)-zout(1,3))<t && abs(target(1,4)-zout(1,4))<t
            disp('target achieved within tolerance');
-           disp(iterations);
+           disp(iterations);                         
            figure
            subplot(2,1,1);
            bar(W1);
            title('Subplot 1: W1 weights histogram');
-           
            subplot(2,1,2);
            bar(W2);
            title('Subplot 2: W2 weights histogram');
